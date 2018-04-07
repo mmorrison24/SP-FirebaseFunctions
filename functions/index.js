@@ -1,34 +1,20 @@
-const functions = require('firebase-functions'); // The Cloud Functions for Firebase SDK to create Cloud Functions and setup triggers.
-const admin = require('firebase-admin'); // The Firebase Admin SDK to access the Firebase Realtime Database.
-admin.initializeApp(functions.config().firebase);
+'use strict';
+/** EXPORT ALL FUNCTIONS
+ *
+ *   Loads all `.f.js` files
+ *   Exports a cloud function matching the file name
+ *     https://github.com/firebase/functions-samples/issues/170
+ *     https://codeburst.io/organizing-your-firebase-cloud-functions-67dc17b3b0da
+ */
+const glob = require("glob");
+const camelCase = require("camelcase");
+const files = glob.sync('./**/*.f.js', { cwd: __dirname, ignore: './node_modules/**'});
 
-var mailgun = require('mailgun-js')({apiKey:'key-c21a941bb7663e3938b887a3cb502797', domain:'mg.yetigo.io'})
-
-// Listens for new data added to contact_msgs{id}
-exports.customerEmailRelay = functions.firestore.document('contact_msgs/{messageID}').onWrite((event) => {
-    // Grab the current value of what was written to the firestore Database.
-    const original = event.data.data();
-    console.log('Sending message', original);
-
-    // only trigger for new messages [event.data.previous.exists()]
-    // do not trigger on delete [!event.data.exists()]
-    if (!event.data.exists || event.data.previous.data()) {
-        console.log('exiting at !event.data.exists || event.data.previous.data()',!event.data.exists , event.data.previous.data())
-        return
+for(let f=0,fl=files.length; f<fl; f++){
+    const file = files[f];
+    const functionName = camelCase(file.slice(0, -5).split('/').join('_')); // Strip off '.f.js'
+    console.log(functionName);
+    if (!process.env.FUNCTION_NAME || process.env.FUNCTION_NAME === functionName) {
+        exports[functionName] = require(file);
     }
-
-    var data = {
-        from: 'notify@yetigo.io',
-        subject: `YetiGo Contact:: ${original.subject}`,
-        html: `<p>${JSON.stringify(original.msg)}</p>`,
-        'h:Reply-To': original.email,
-        to: 'customers@yetigo.io'
-    }
-
-    mailgun.messages().send(data, function (error, body) {
-        console.log(body)
-    })
-
-    return 0;
-
-});
+}
