@@ -2,8 +2,28 @@ const functions = require('firebase-functions'); // The Cloud Functions for Fire
 const admin = require('firebase-admin'); // The Firebase Admin SDK to access the Firebase Realtime Database.
 try {admin.initializeApp(functions.config().firebase);} catch(e) {Function.prototype} // You do that because the admin SDK can only be initialized once.
 //[user includes]
+const {google} = require('googleapis');
 const express = require('express');
 const app = express();
+
+const SCOPES = ['https://www.googleapis.com/auth/calendar.readonly'];
+
+const key = {
+    "private_key": functions.googleapi.private_key,
+    "client_email": functions.googleapi.client_email,
+}
+
+// /auth
+const jwtClient = new google.auth.JWT({
+    email: key.client_email,
+    key: key.private_key,
+    scopes: SCOPES,
+    delegationEmail: 'drivers@yetigo.io'
+});
+const auth = jwtClient
+
+const calendar = google.calendar({version: 'v3', auth});
+
 
 // Express middleware that validates Firebase ID Tokens passed in the Authorization HTTP header.
 // The Firebase ID token needs to be passed as a Bearer token in the Authorization HTTP header like this:
@@ -33,9 +53,44 @@ app.use(authenticate);
 // GET /api/messages?category={category}
 // Get all messages, optionally specifying a category to filter on
 app.get('/', (req, res) => {
-    const category = req.query.category;
 
-    return res.status(200).json({test:true});
+    calendar.events.list({
+        calendarId: 'drivers@yetigo.io',
+        //timeMin: (new Date()).toISOString(),
+        maxResults: 10,
+        singleEvents: true,
+        orderBy: 'startTime',
+    }, (err, resp) => {
+        if (err) return console.log('The API returned an error: ' + err);
+        const events = resp.data.items;
+        if (events.length) {
+            console.log(`Upcoming ${events.length} events:`);
+            let curated_events = events.map((event, i) => {
+                const start = event.start.dateTime || event.start.date;
+                const {description, htmlLink, id, status, location, displayName, end, summary} = event;
+                const prunedEvent = {
+                    description,
+                    url: htmlLink,
+                    id,
+                    status,
+                    location,
+                    start,
+                    displayName,
+                    end,
+                    summary
+                }
+                console.log(`event: ${JSON.stringify(prunedEvent)}\n`);
+                return prunedEvent
+            });
+
+            return res.status(200).json({events: curated_events});
+        } else {
+            console.log('No upcoming events found.');
+            return res.status(200).json({events:[]});
+        }
+    }), (err)=>{console.log(err)};
+
+    //return res.status(200).json({test:true});
 
 });
 

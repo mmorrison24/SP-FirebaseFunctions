@@ -15,6 +15,7 @@
     "firebase-admin": "~5.8.1",
     "firebase-functions": "^0.8.1",
     "glob": "^7.1.2",
+    "googleapis": "^28.1.0",
     "mailgun-js": "^0.16.0"
   },
   "devDependencies": {
