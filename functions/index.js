@@ -8,7 +8,7 @@
  */
 const glob = require("glob");
 const camelCase = require("camelcase");
-const files = glob.sync('./**/*.f.js', { cwd: __dirname, ignore: './node_modules/**'});
+const files = glob.sync('./**/*.f.js', { cwd: __dirname, ignore: ['./node_modules/**','./utils/**']});
 
 for(let f=0,fl=files.length; f<fl; f++){
     const file = files[f];

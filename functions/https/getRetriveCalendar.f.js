@@ -4,21 +4,23 @@ try {admin.initializeApp(functions.config().firebase);} catch(e) {Function.proto
 //[user includes]
 const {google} = require('googleapis');
 const express = require('express');
+const cookieParser = require('cookie-parser')();
+const cors = require('cors')({origin: true});
 const app = express();
 
 const SCOPES = ['https://www.googleapis.com/auth/calendar.readonly'];
 
 const key = {
-    "private_key": functions.googleapi.private_key,
-    "client_email": functions.googleapi.client_email,
+    "private_key": functions.config().googleapi.private_key.replace(/\\n/g,'\n'),
+    "client_email": functions.config().googleapi.client_email,
 }
 
-// /auth
+// auth
 const jwtClient = new google.auth.JWT({
     email: key.client_email,
     key: key.private_key,
     scopes: SCOPES,
-    delegationEmail: 'drivers@yetigo.io'
+    delegationEmail: 'yetigo-3b1de@appspot.gserviceaccount.com'
 });
 const auth = jwtClient
 
@@ -29,13 +31,22 @@ const calendar = google.calendar({version: 'v3', auth});
 // The Firebase ID token needs to be passed as a Bearer token in the Authorization HTTP header like this:
 // `Authorization: Bearer <Firebase ID Token>`.
 // when decoded successfully, the ID Token content will be added as `req.user`.
-/*
+
 const authenticate = (req, res, next) => {
     if (!req.headers.authorization || !req.headers.authorization.startsWith('Bearer ')) {
         res.status(403).send('Unauthorized');
         return;
     }
-    const idToken = req.headers.authorization.split('Bearer ')[1];
+    let idToken;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+        console.log('Found "Authorization" header');
+        // Read the ID Token from the Authorization header.
+        idToken = req.headers.authorization.split('Bearer ')[1];
+    } else {
+        console.log('Found "__session" cookie');
+        // Read the ID Token from cookie.
+        idToken = req.cookies.__session;
+    }
     admin.auth().verifyIdToken(idToken).then((decodedIdToken) => {
         req.user = decodedIdToken;
         return next();
@@ -44,15 +55,14 @@ const authenticate = (req, res, next) => {
     });
 };
 
+app.use(cors);
+app.use(cookieParser);
 app.use(authenticate);
-
-
-
-*/
 
 // GET /api/messages?category={category}
 // Get all messages, optionally specifying a category to filter on
-app.get('/', (req, res) => {
+app.get('*', (req, res) => {
+console.log('retireve called');
 
     calendar.events.list({
         calendarId: 'drivers@yetigo.io',
@@ -64,9 +74,10 @@ app.get('/', (req, res) => {
         if (err) return console.log('The API returned an error: ' + err);
         const events = resp.data.items;
         if (events.length) {
-            console.log(`Upcoming ${events.length} events:`);
+            console.log(`Returning upcoming ${events.length} events:`);
             let curated_events = events.map((event, i) => {
-                const start = event.start.dateTime || event.start.date;
+                const startdate = event.start.dateTime || event.start.date;
+                const enddate = event.end.dateTime || event.end.date;
                 const {description, htmlLink, id, status, location, displayName, end, summary} = event;
                 const prunedEvent = {
                     description,
@@ -74,12 +85,12 @@ app.get('/', (req, res) => {
                     id,
                     status,
                     location,
-                    start,
+                    startdate,
                     displayName,
-                    end,
+                    enddate,
                     summary
                 }
-                console.log(`event: ${JSON.stringify(prunedEvent)}\n`);
+                console.log(`event: ${prunedEvent.displayName}\n`);
                 return prunedEvent
             });
 

@@ -7,7 +7,7 @@ yarn-error.log*
 firebase-debug.log
 
 #security
-.runtimeconfig.json
+functions/.runtimeconfig.json
 
 # Editor directories and files
 .idea
