@@ -5,17 +5,10 @@ try {admin.initializeApp(functions.config().firebase);} catch(e) {Function.proto
 var mailgun = require('mailgun-js')({apiKey:'key-c21a941bb7663e3938b887a3cb502797', domain:'mg.yetigo.io'})
 
 // Listens for new data added to contact_msgs{id}
-exports = module.exports = functions.firestore.document('contact_msgs/{messageID}').onWrite((event) => {
+exports = module.exports = functions.firestore.document('contact_msgs/{messageID}').onCreate((snap, context) => {
     // Grab the current value of what was written to the firestore Database.
-    const original = event.data.data();
+    const original = snap.data();
     console.log('Sending message', original);
-
-    // only trigger for new messages [event.data.previous.exists()]
-    // do not trigger on delete [!event.data.exists()]
-    if (!event.data.exists || event.data.previous.data()) {
-        console.log('exiting at !event.data.exists || event.data.previous.data()',!event.data.exists , event.data.previous.data())
-        return
-    }
 
     var data = {
         from: 'notify@yetigo.io',
