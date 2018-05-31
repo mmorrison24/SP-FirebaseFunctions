@@ -62,10 +62,12 @@ app.use(authenticate);
 // GET /api/messages?category={category}
 // Get all messages, optionally specifying a category to filter on
 app.get('*', (req, res) => {
-console.log('retireve called');
+    console.log('retireve called - body, params, query', req.body, req.params, req.query.email);
+
+    const emailOfInterest = req.query.email;
 
     calendar.events.list({
-        calendarId: 'drivers@yetigo.io',
+        calendarId: emailOfInterest,
         //timeMin: (new Date()).toISOString(),
         maxResults: 10,
         singleEvents: true,
@@ -90,7 +92,6 @@ console.log('retireve called');
                     enddate,
                     summary
                 }
-                console.log(`event: ${prunedEvent.displayName}\n`);
                 return prunedEvent
             });
 
