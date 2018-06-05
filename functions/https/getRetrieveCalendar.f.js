@@ -62,7 +62,7 @@ app.use(authenticate);
 // GET /api/messages?category={category}
 // Get all messages, optionally specifying a category to filter on
 app.get('*', (req, res) => {
-    console.log('retireve called - body, params, query', req.body, req.params, req.query.email);
+    console.log('retrieve called - body, params, query', req.body, req.params, req.query.email);
 
     const emailOfInterest = req.query.email;
 
@@ -73,7 +73,10 @@ app.get('*', (req, res) => {
         singleEvents: true,
         orderBy: 'startTime',
     }, (err, resp) => {
-        if (err) return console.log('The API returned an error: ' + err);
+        if (err) {
+            console.log('The API returned an error: ' + err);
+            return res.status(404);
+        }
         const events = resp.data.items;
         if (events.length) {
             console.log(`Returning upcoming ${events.length} events:`);
