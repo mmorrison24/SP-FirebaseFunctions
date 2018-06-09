@@ -64,10 +64,11 @@ app.use(authenticate);
 app.get('*', (req, res) => {
     console.log('retrieve called - body, params, query', req.body, req.params, req.query.email);
 
+    const emailCalendar = 'drivers@scoopus.io' // req.query.email;
     const emailOfInterest = req.query.email;
 
     calendar.events.list({
-        calendarId: emailOfInterest,
+        calendarId: emailCalendar,
         //timeMin: (new Date()).toISOString(),
         maxResults: 10,
         singleEvents: true,
@@ -77,36 +78,67 @@ app.get('*', (req, res) => {
             console.log('The API returned an error: ' + err);
             return res.status(404);
         }
-        const events = resp.data.items;
-        if (events.length) {
-            console.log(`Returning upcoming ${events.length} events:`);
-            let curated_events = events.map((event, i) => {
-                const startdate = event.start.dateTime || event.start.date;
-                const enddate = event.end.dateTime || event.end.date;
-                const {description, htmlLink, id, status, location, displayName, end, summary} = event;
-                const prunedEvent = {
-                    description,
-                    url: htmlLink,
-                    id,
-                    status,
-                    location,
-                    startdate,
-                    displayName,
-                    enddate,
-                    summary
-                }
-                return prunedEvent
-            });
-
-            return res.status(200).json({events: curated_events});
-        } else {
+        if (resp.data.items.length <= 0) {
             console.log('No upcoming events found.');
             return res.status(200).json({events:[]});
         }
+
+        const events = resp.data.items;
+        let curated_events = [];
+
+        console.log(`Returning upcoming ${events.length} events:`);
+        events.map((event) => {
+            const prunedEvent = pruneEvent(event);
+            console.log('include?', (prunedEvent.guardian === emailOfInterest || prunedEvent.driver === emailOfInterest ))
+            console.log('names=', prunedEvent.guardian, emailOfInterest, prunedEvent.driver ,'\n')
+            if(prunedEvent.guardian === emailOfInterest || prunedEvent.driver === emailOfInterest){
+                curated_events.push(prunedEvent)
+            }
+        });
+
+        return res.status(200).json({events: curated_events});
     }), (err)=>{console.log(err)};
 
     //return res.status(200).json({test:true});
 
 });
 
+const getDriverString = (text) => {
+    return text ? text.match('driver\\:.*\\w+') : ''
+}
+
+const getDriver = (text) => {
+    const driverstr = getDriverString(text) ? getDriverString(text)[0] : ''
+    return driverstr.replace('driver:','')
+}
+
+const getGuardian = (attendees, driver_email) => {
+    if(!attendees || attendees.length <= 0) return null
+    const parents = attendees.filter((attendant) => !attendant.self && !attendant.organizer && attendant.email !== driver_email )
+    return parents
+}
+
+const pruneEvent = (event) => {
+    const startdate = event.start.dateTime || event.start.date;
+    const enddate = event.end.dateTime || event.end.date;
+    const {attendees, description, htmlLink, id, status, location, displayName, end, summary} = event;
+    const driver = getDriver(event.description)
+    const guardian = getGuardian(event.attendees, driver)
+    console.log(summary, driver, guardian)
+    return {
+        description,
+        url: htmlLink,
+        id,
+        status,
+        location,
+        startdate,
+        displayName,
+        enddate,
+        summary,
+        driver,
+        guardian,
+        attendees
+    }
+
+}
 exports = module.exports = functions.https.onRequest(app);
