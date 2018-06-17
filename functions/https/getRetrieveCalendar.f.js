@@ -70,7 +70,6 @@ app.get('*', (req, res) => {
     calendar.events.list({
         calendarId: emailCalendar,
         //timeMin: (new Date()).toISOString(),
-        maxResults: 10,
         singleEvents: true,
         orderBy: 'startTime',
     }, (err, resp) => {
@@ -82,6 +81,9 @@ app.get('*', (req, res) => {
             console.log('No upcoming events found.');
             return res.status(200).json({events:[]});
         }
+
+        //add to rides collection?
+        ensureRideExistsInRideCollection(resp.data.items)
 
         const events = resp.data.items;
         let curated_events = [];
@@ -102,6 +104,19 @@ app.get('*', (req, res) => {
     //return res.status(200).json({test:true});
 
 });
+
+const ensureRideExistsInRideCollection = (ridesTocCheck) => {
+    // todo: remove this functinality , by performing at event creation
+    ridesTocCheck.map((event) => {
+        const prunedEvent = pruneEvent(event);
+        admin.firestore().collection('rides')
+            .doc(prunedEvent.id)
+            .set({
+                driver:{email:prunedEvent.driver},
+                guardian: {email:prunedEvent.guardian}
+            })
+    });
+}
 
 const getDriverString = (text) => {
     return text ? text.match('driver\\:.*\\w+') : ''
