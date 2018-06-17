@@ -11,11 +11,11 @@ exports = module.exports = functions.firestore.document('contact_msgs/{messageID
     console.log('Sending message', original);
 
     var data = {
-        from: 'notify@yetigo.io',
+        from: 'notify@scoopus.io',
         subject: `YetiGo Contact:: ${original.subject}`,
         html: `<p>${JSON.stringify(original.msg)}</p>`,
         'h:Reply-To': original.email,
-        to: 'customers@yetigo.io'
+        to: 'customers@scoopus.io'
     }
 
     mailgun.messages().send(data, function (error, body) {
