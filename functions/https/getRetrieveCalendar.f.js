@@ -92,7 +92,7 @@ app.get('*', (req, res) => {
         events.map((event) => {
             const prunedEvent = pruneEvent(event);
             console.log('include?', (prunedEvent.guardian === emailOfInterest || prunedEvent.driver === emailOfInterest ))
-            console.log('names=', prunedEvent.guardian, emailOfInterest, prunedEvent.driver ,'\n')
+            //console.log('names=', prunedEvent.guardian, emailOfInterest, prunedEvent.driver ,'\n')
             if(prunedEvent.guardian === emailOfInterest || prunedEvent.driver === emailOfInterest){
                 curated_events.push(prunedEvent)
             }
@@ -112,6 +112,7 @@ const ensureRideExistsInRideCollection = (ridesTocCheck) => {
         admin.firestore().collection('rides')
             .doc(prunedEvent.id)
             .set({
+                id: prunedEvent.id,
                 driver:{email:prunedEvent.driver},
                 guardian: {email:prunedEvent.guardian}
             })
@@ -124,13 +125,13 @@ const getDriverString = (text) => {
 
 const getDriver = (text) => {
     const driverstr = getDriverString(text) ? getDriverString(text)[0] : ''
-    return driverstr.replace('driver:','')
+    return driverstr.length ? driverstr.replace('driver:','') : null
 }
 
 const getGuardian = (attendees, driver_email) => {
     if(!attendees || attendees.length <= 0) return null
     const parents = attendees.filter((attendant) => !attendant.self && !attendant.organizer && attendant.email !== driver_email )
-    return parents
+    return parents[0]? parents[0].email : null
 }
 
 const pruneEvent = (event) => {
