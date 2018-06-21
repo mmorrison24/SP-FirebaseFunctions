@@ -97,6 +97,7 @@ app.get('/', (req, res) => {
                 curated_events.push(prunedEvent)
             }
         });
+        // todo save the sanitized description back to the calendar
 
         return res.status(200).json({events: curated_events});
     }), (err)=>{console.log(err)};
@@ -104,32 +105,6 @@ app.get('/', (req, res) => {
     //return res.status(200).json({test:true});
 
 });
-
-app.get('/current', (req, res) => {
-    console.log('current ride called - body, params, query', req.body, req.params, req.query.email,req.user.email);
-
-    const emailCalendar = 'drivers@scoopus.io' // req.query.email;
-    const emailOfInterest = req.user.email;
-    let usersCurrentRides = []
-
-    admin.firestore().collection('ride_current')
-        .where("driver.email", "==", emailOfInterest, "||", "guardian.email", "==", emailOfInterest)
-        .get()
-        .then(snapshot => {
-            console.log('curr:','got docs', snapshot.docs);
-            console.log('curr:','got docs.length', snapshot.docs.length);
-            snapshot.forEach((doc) => {
-                usersCurrentRides.push(doc.data())
-            });
-            return res.status(200).json({current_event: usersCurrentRides});
-        })
-        .catch(err => {
-            console.log('Error getting documents', err);
-            return res.status(200).json({current_event: null});
-        })
-
-});
-
 
 const ensureRideExistsInRideCollection = (ridesTocCheck) => {
     // todo: remove this functinality , by performing at event creation
@@ -140,35 +115,45 @@ const ensureRideExistsInRideCollection = (ridesTocCheck) => {
             .set({
                 id: prunedEvent.id,
                 driver:{email:prunedEvent.driver},
-                guardian: {email:prunedEvent.guardian}
+                guardian: {email:prunedEvent.guardian},
+                destination: prunedEvent.destination
             })
     });
 }
 
-const getDriverString = (text) => {
-    return text ? text.match('driver\\:.*\\w+') : ''
-}
-
 const getDriver = (text) => {
-    const driverstr = getDriverString(text) ? getDriverString(text)[0] : ''
-    return driverstr.length ? driverstr.replace('driver:','') : null
+    const driverstr = text.match(/driver:.*/g) || ''
+    return driverstr.length ? driverstr.replace(/driver:/g,'') : null
 }
 
 const getGuardian = (attendees, driver_email) => {
-    if(!attendees || attendees.length <= 0) return null
+    // todo utilize the driver collection in Firestore
+    // todo make sure this returns multiple parents
+    if(!attendees || attendees.length <= 0)
+        return null
+
     const parents = attendees.filter((attendant) => !attendant.self && !attendant.organizer && attendant.email !== driver_email )
     return parents[0]? parents[0].email : null
 }
 
+const getDestination = (text) => {
+    const dest = text.match(/(dest:.*)|(destination:.*)/g)[0] || ''
+    return dest.length ? dest.replace(/(dest:)|(destination:)/g, '') : null
+}
+const removeMetaData = (text) => {
+    return text.replace(/(destination:.*)|(dest:.*)|(driver:.*)/gi,'')
+}
 const pruneEvent = (event) => {
     const startdate = event.start.dateTime || event.start.date;
     const enddate = event.end.dateTime || event.end.date;
     const {attendees, description, htmlLink, id, status, location, displayName, end, summary} = event;
-    const driver = getDriver(event.description)
+    const driver = getDriver(description)
     const guardian = getGuardian(event.attendees, driver)
+    const destination = getDestination(description)
+    const cleanDescription = removeMetaData(description)
     console.log(summary, driver, guardian)
     return {
-        description,
+        description: cleanDescription,
         url: htmlLink,
         id,
         status,
@@ -176,6 +161,7 @@ const pruneEvent = (event) => {
         startdate,
         displayName,
         enddate,
+        destination,
         summary,
         driver,
         guardian,
