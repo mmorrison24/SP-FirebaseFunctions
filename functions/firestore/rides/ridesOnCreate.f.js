@@ -16,7 +16,7 @@ exports = module.exports = functions.firestore.document('rides/{rideID}').onCrea
             myUpdatedSnapshot.driver.uid = UIDs[0];
             myUpdatedSnapshot.guardian.uid = UIDs[1];
 
-            //console.log('myUpdatedSnapshot ', myUpdatedSnapshot)
+            //console.log('myUpdatedSnapshot ', myUpdatedSnapshot, UIDs)
 
             return snap.ref.set(myUpdatedSnapshot, {merge: true})
         })
