@@ -61,11 +61,11 @@ app.use(authenticate);
 
 // GET /api/messages?category={category}
 // Get all messages, optionally specifying a category to filter on
-app.get('*', (req, res) => {
-    console.log('retrieve called - body, params, query', req.body, req.params, req.query.email);
+app.get('/', (req, res) => {
+    console.log('retrieve called - body, params, query', req.body, req.params, req.query.email,req.user.email);
 
     const emailCalendar = 'drivers@scoopus.io' // req.query.email;
-    const emailOfInterest = req.query.email;
+    const emailOfInterest = req.user.email;
 
     calendar.events.list({
         calendarId: emailCalendar,
@@ -104,6 +104,32 @@ app.get('*', (req, res) => {
     //return res.status(200).json({test:true});
 
 });
+
+app.get('/current', (req, res) => {
+    console.log('current ride called - body, params, query', req.body, req.params, req.query.email,req.user.email);
+
+    const emailCalendar = 'drivers@scoopus.io' // req.query.email;
+    const emailOfInterest = req.user.email;
+    let usersCurrentRides = []
+
+    admin.firestore().collection('ride_current')
+        .where("driver.email", "==", emailOfInterest, "||", "guardian.email", "==", emailOfInterest)
+        .get()
+        .then(snapshot => {
+            console.log('curr:','got docs', snapshot.docs);
+            console.log('curr:','got docs.length', snapshot.docs.length);
+            snapshot.forEach((doc) => {
+                usersCurrentRides.push(doc.data())
+            });
+            return res.status(200).json({current_event: usersCurrentRides});
+        })
+        .catch(err => {
+            console.log('Error getting documents', err);
+            return res.status(200).json({current_event: null});
+        })
+
+});
+
 
 const ensureRideExistsInRideCollection = (ridesTocCheck) => {
     // todo: remove this functinality , by performing at event creation
