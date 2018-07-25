@@ -7,8 +7,16 @@ exports = module.exports = functions.firestore.document('rides/{rideID}').onCrea
 
     const original = snap.data(); // Grab the current value of what was written to the firestore Database.
 
-    const driverIDPrms = getUserIdFromEmail(original.driver.email)
-    const guardianIDPrms = getUserIdFromEmail(original.guardian.email)
+    let driverIDPrms = null
+    let guardianIDPrms = null
+
+    if(original.driver){
+        driverIDPrms = getUserIdFromEmail(original.driver.email)
+    }
+
+    if(original.guardian) {
+        guardianIDPrms = getUserIdFromEmail(original.guardian.email)
+    }
 
     Promise.all([driverIDPrms, guardianIDPrms])
         .then((UIDs) => {

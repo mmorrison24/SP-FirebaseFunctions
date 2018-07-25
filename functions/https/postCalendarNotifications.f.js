@@ -62,12 +62,14 @@ const readCalInfo = (res, syncToken) => {
     }, (err, resp) => {
         if (err) {
             console.log('The API returned an error: ' + err);
-            return res.status(404);
+            return res.status(500);
         }
         if (resp.data.items.length <= 0) {
             console.log('No upcoming events found.');
             return res.status(200).json({events:[]});
         }
+
+        // todo: handle updates and deletes properly
 
         const events = resp.data.items;
         let curated_events = [];
@@ -92,16 +94,22 @@ const getDataFromPage = () => {
 
 const addRidesToRideCollection = (ridesToUpload, nextSyncToken) => {
     console.log('saving events', ridesToUpload.length)
-    // todo: remove this functinality , by performing at event creation
+    console.log('ride[0]', ridesToUpload[0])
+    // todo: remove this function , by maybe? adding to batch at event creation
     const batch = admin.firestore().batch();
-    const ridesRef = admin.firestore().collection('rides/');
-    ridesToUpload.map((event) => { console.log(event); batch.set( ridesRef.doc(event.id), event) });
+    const ridesRef = admin.firestore().collection('rides');
+
+    ridesToUpload.map((event) => {
+        console.log('uploading event', event.id);
+        batch.set( ridesRef.doc(event.id), event)
+    });
+
     batch.commit()
         .then( data =>{
             console.log('save complete', data)
             return true;})
         .catch( err => {
-            console.log('error occuries on save', err)
+            console.log('error occuried on save', err)
             return false
         })
 
