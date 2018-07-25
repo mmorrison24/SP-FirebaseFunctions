@@ -18,7 +18,7 @@ exports = module.exports = functions.firestore.document('contact_msgs/{messageID
         to: 'customers@scoopus.io'
     }
 
-    mailgun.messages().send(data, function (error, body) {
+    mailgun.messages().send(data, (error, body) => {
         console.log(body)
     })
 

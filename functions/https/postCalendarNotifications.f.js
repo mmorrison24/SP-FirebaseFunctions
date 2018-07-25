@@ -45,9 +45,9 @@ app.all('/', (req, res) => {
 
             readCalInfo(res, syncToken)
             return true
-        }).catch(function(error) {
-        console.log("Error getting syncToken:", error);
-    });
+        }).catch(error => {
+            console.log("Error getting syncToken:", error);
+        });
 
 
 
@@ -95,11 +95,13 @@ const getDataFromPage = () => {
 const addRidesToRideCollection = (ridesToUpload, nextSyncToken) => {
     console.log('saving events', ridesToUpload.length)
     console.log('ride[0]', ridesToUpload[0])
+
     // todo: remove this function , by maybe? adding to batch at event creation
+
     const batch = admin.firestore().batch();
     const ridesRef = admin.firestore().collection('rides');
 
-    ridesToUpload.map((event) => {
+    ridesToUpload.map( event => {
         console.log('uploading event', event.id);
         batch.set( ridesRef.doc(event.id), event)
     });

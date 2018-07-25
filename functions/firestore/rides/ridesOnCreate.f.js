@@ -1,8 +1,8 @@
 const functions = require('firebase-functions'); // The Cloud Functions for Firebase SDK to create Cloud Functions and setup triggers.
 const admin = require('firebase-admin'); // The Firebase Admin SDK to access the Firebase Realtime Database.
-try {admin.initializeApp(functions.config().firebase);} catch(e) {Function.prototype} // You do that because the admin SDK can only be initialized once.
+try { admin.initializeApp(functions.config().firebase); } catch(e) { Function.prototype } // You do that because the admin SDK can only be initialized once.
 
-// Listens for new data added to contact_msgs{id}
+// Listens for new data added to rides/{id}
 exports = module.exports = functions.firestore.document('rides/{rideID}').onCreate((snap, context) => {
 
     const original = snap.data(); // Grab the current value of what was written to the firestore Database.
@@ -19,7 +19,7 @@ exports = module.exports = functions.firestore.document('rides/{rideID}').onCrea
     }
 
     Promise.all([driverIDPrms, guardianIDPrms])
-        .then((UIDs) => {
+        .then( UIDs => {
             let myUpdatedSnapshot = original
             myUpdatedSnapshot.driver.uid = UIDs[0];
             myUpdatedSnapshot.guardian.uid = UIDs[1];
@@ -28,7 +28,7 @@ exports = module.exports = functions.firestore.document('rides/{rideID}').onCrea
 
             return snap.ref.set(myUpdatedSnapshot, {merge: true})
         })
-        .catch((err) => console.log('error',err))
+        .catch( err => console.log('error',err))
 
 });
 
