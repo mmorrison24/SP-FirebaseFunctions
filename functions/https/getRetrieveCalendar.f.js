@@ -82,9 +82,6 @@ app.get('/', (req, res) => {
             return res.status(200).json({events:[]});
         }
 
-        //add to rides collection?
-        ensureRideExistsInRideCollection(resp.data.items)
-
         const events = resp.data.items;
         let curated_events = [];
 
@@ -97,7 +94,10 @@ app.get('/', (req, res) => {
                 curated_events.push(prunedEvent)
             }
         });
+
         // todo save the sanitized description back to the calendar
+        //add to rides collection?
+        addRidesToRideCollection(resp.data, resp.data.nextSyncToken)
 
         return res.status(200).json({events: curated_events});
     }), (err)=>{console.log(err)};
@@ -106,9 +106,9 @@ app.get('/', (req, res) => {
 
 });
 
-const ensureRideExistsInRideCollection = (ridesTocCheck) => {
+const addRidesToRideCollection = (ridesToUpload, nextSyncToken) => {
     // todo: remove this functinality , by performing at event creation
-    ridesTocCheck.map((event) => {
+    ridesToUpload.map((event) => {
         const prunedEvent = pruneEvent(event);
         admin.firestore().collection('rides')
             .doc(prunedEvent.id)
@@ -119,11 +119,21 @@ const ensureRideExistsInRideCollection = (ridesTocCheck) => {
                 destination: prunedEvent.destination
             })
     });
+
+    admin.firestore().collection('rides_sync')
+        .doc("nextSyncToken")
+        .set({
+            token: nextSyncToken,
+            date: (new Date()).toISOString()
+        })
+
 }
 
 const getDriver = (text) => {
-    const driverstr = text.match(/driver:.*/g) || ''
-    return driverstr.length ? driverstr.replace(/driver:/g,'') : null
+    if(text === undefined || text === null)
+        return null
+    const driverstr = text.match(/driver:.*/g)
+    return driverstr && driverstr !== undefined ? driverstr[0].replace(/driver:/g,'') : null
 }
 
 const getGuardian = (attendees, driver_email) => {
@@ -137,10 +147,15 @@ const getGuardian = (attendees, driver_email) => {
 }
 
 const getDestination = (text) => {
-    const dest = text.match(/(dest:.*)|(destination:.*)/g)[0] || ''
-    return dest.length ? dest.replace(/(dest:)|(destination:)/g, '') : null
+    if(text === undefined || text === null)
+        return null
+    const dest = text.match(/(dest:.*)|(destination:.*)/g)
+    return dest && dest !== undefined ? dest[0].replace(/(dest:)|(destination:)/g, '') : null
 }
+
 const removeMetaData = (text) => {
+    if(text === undefined || text === null)
+        return null
     return text.replace(/(destination:.*)|(dest:.*)|(driver:.*)/gi,'')
 }
 const pruneEvent = (event) => {
