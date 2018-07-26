@@ -22,11 +22,16 @@ exports = module.exports = functions.firestore.document('rides/{rideID}').onCrea
         .then( UIDs => {
             let myUpdatedSnapshot = original
 
-            if(myUpdatedSnapshot === null)
+            if (myUpdatedSnapshot === null)
                 return
 
-            myUpdatedSnapshot.driver.uid = UIDs[0];
-            myUpdatedSnapshot.guardian.uid = UIDs[1];
+            myUpdatedSnapshot.driver = {};
+            myUpdatedSnapshot.driver.uid = UIDs[0] || null;
+            myUpdatedSnapshot.driver.email = original.driver.email;
+
+            myUpdatedSnapshot.guardian = {};
+            myUpdatedSnapshot.guardian.uid = UIDs[1] || null;
+            myUpdatedSnapshot.guardian.email = original.guardian.email;
 
             //console.log('myUpdatedSnapshot ', myUpdatedSnapshot, UIDs)
 
@@ -37,10 +42,10 @@ exports = module.exports = functions.firestore.document('rides/{rideID}').onCrea
 });
 
 const getUserIdFromEmail = (email) => {
-    //console.log('going to check for ', email)
     if(email === null || email === undefined || email.length <= 0 ){
         return null
     }
+    //console.log('going to check for ', email)
 
     return admin.auth().getUserByEmail(email)
         .then((userRecord) => { console.log('found:', userRecord); return userRecord.uid})

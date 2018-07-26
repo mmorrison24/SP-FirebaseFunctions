@@ -154,8 +154,8 @@ const pruneEvent = (event) => {
     const startdate = event.start? event.start.dateTime || event.start.date : null;
     const enddate = event.start? event.end.dateTime || event.end.date : null;
     const {attendees, description, htmlLink, id, status, location, end, summary} = event;
-    const driver = getDriver(description)
-    const guardian = getGuardian(event.attendees, driver)
+    const driver = { email: getDriver(description), id:null }
+    const guardian = { email: getGuardian(event.attendees, driver.email), id: null }
     const destination = getDestination(description)
     const cleanDescription = removeMetaData(description)
     let prunedEvent = {
