@@ -21,6 +21,10 @@ exports = module.exports = functions.firestore.document('rides/{rideID}').onCrea
     Promise.all([driverIDPrms, guardianIDPrms])
         .then( UIDs => {
             let myUpdatedSnapshot = original
+
+            if(myUpdatedSnapshot === null)
+                return
+
             myUpdatedSnapshot.driver.uid = UIDs[0];
             myUpdatedSnapshot.guardian.uid = UIDs[1];
 
@@ -34,7 +38,7 @@ exports = module.exports = functions.firestore.document('rides/{rideID}').onCrea
 
 const getUserIdFromEmail = (email) => {
     //console.log('going to check for ', email)
-    if(email === null || email.length <= 0 || email === undefined){
+    if(email === null || email === undefined || email.length <= 0 ){
         return null
     }
 

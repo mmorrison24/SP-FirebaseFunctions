@@ -151,8 +151,8 @@ const removeMetaData = (text) => {
     return text && text !== undefined ? text.replace(/(destination:.*)|(dest:.*)|(driver:.*)/gi,'').replace(/<(?:.|\n)*?>/gm, '') : null
 }
 const pruneEvent = (event) => {
-    const startdate = event.start.dateTime || event.start.date;
-    const enddate = event.end.dateTime || event.end.date;
+    const startdate = event.start? event.start.dateTime || event.start.date : null;
+    const enddate = event.start? event.end.dateTime || event.end.date : null;
     const {attendees, description, htmlLink, id, status, location, end, summary} = event;
     const driver = getDriver(description)
     const guardian = getGuardian(event.attendees, driver)
