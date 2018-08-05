@@ -32,7 +32,7 @@ app.use(cookieParser);
 // GET /api/messages?category={category}
 // Get all messages, optionally specifying a category to filter on
 app.all('/', (req, res) => {
-    console.log('calUpdate called - body, params, query', req.body, req.params);
+    console.log('Calendar Updae called');
     let syncToken = null
 
     admin.firestore().collection('rides_sync')
@@ -74,7 +74,18 @@ const readCalInfo = (res, syncToken) => {
         const events = resp.data.items;
         let curated_events = [];
         console.log(`Sanitizing upcoming ${events.length} events:`);
-        events.map((event) => (curated_events.push(pruneEvent(event))));
+        events.map((event) => {
+            if(event.status === 'confirmed'){
+                pruneEvent(event)
+                    .then(perfectEvent=> {
+                    // todo - do testing and logging here
+                    if(perfectEvent) {
+                        curated_events.push(perfectEvent)
+                    }
+                    return true
+                }).catch( err => {console.log('couldnt prune event',err)})
+            }
+        });
         // todo save the sanitized description back to the calendar
         //add to rides collection?
         addRidesToRideCollection(curated_events, resp.data.nextSyncToken)
@@ -124,13 +135,32 @@ const addRidesToRideCollection = (ridesToUpload, nextSyncToken) => {
 
 }
 
-const getDriver = (text) => {
+const getDriverFromDescription = (text) => {
     if(text === undefined || text === null)
         return null
     const driverstr = text.match(/driver:.*/g)
     return driverstr && driverstr !== undefined ? driverstr[0].replace(/driver:/g,'') : null
 }
+const getDriverFromAttendees = attendees => {
 
+    const driverCollection = admin.firestore().collection('drivers')
+    const attendeesEmails = attendees.map( attendee => attendee.email)
+
+    return getFirebaseData(driverCollection, attendeesEmails)
+        .then(results => { return results.filter( r => r !== null);})
+
+
+    function getFirebaseData(collection, key_arr) {
+        return Promise
+            .all(key_arr.map(key_str => collection.doc(key_str)
+                .get()
+                .then(doc => {
+                    if (!doc.exists) {return( null)}
+                    return( {email: doc.id, uid:doc.data().uid} )
+                })))
+    }
+
+}
 const getGuardian = (attendees, driver_email) => {
     // todo utilize the driver collection in Firestore
     // todo make sure this returns multiple parents
@@ -151,31 +181,37 @@ const removeMetaData = (text) => {
     return text && text !== undefined ? text.replace(/(destination:.*)|(dest:.*)|(driver:.*)/gi,'').replace(/<(?:.|\n)*?>/gm, '') : null
 }
 const pruneEvent = (event) => {
+    const {attendees, description, htmlLink, id, status, location, end, summary} = event;
     const startdate = event.start? event.start.dateTime || event.start.date : null;
     const enddate = event.start? event.end.dateTime || event.end.date : null;
-    const {attendees, description, htmlLink, id, status, location, end, summary} = event;
-    const driver = { email: getDriver(description), id:null }
     const guardian = { email: getGuardian(event.attendees, driver.email), id: null }
     const destination = getDestination(description)
     const cleanDescription = removeMetaData(description)
-    let prunedEvent = {
-        description: cleanDescription,
-        url: htmlLink,
-        id,
-        status,
-        location,
-        startdate,
-        enddate,
-        destination,
-        summary,
-        driver,
-        guardian,
-        attendees
-    }
 
-    Object.keys(prunedEvent).map(key => (prunedEvent[key] === undefined ? prunedEvent[key] = null: true))
+    const driverPromise = getDriverFromAttendees(attendees)
 
-    return prunedEvent
+    return Promise.all(driverPromise)
+        .then(drivers => {
+            let prunedEvent = {
+                description: cleanDescription,
+                url: htmlLink,
+                id,
+                status,
+                location,
+                startdate,
+                enddate,
+                destination,
+                summary,
+                driver: drivers,
+                guardian,
+                attendees
+            }
+
+            Object.keys(prunedEvent).map(key => (prunedEvent[key] === undefined ? prunedEvent[key] = null: true))
+
+            return prunedEvent
+        }).catch(err => {console.log('error in pruneEvent func',err); return null})
+
 
 }
 exports = module.exports = functions.https.onRequest(app);
