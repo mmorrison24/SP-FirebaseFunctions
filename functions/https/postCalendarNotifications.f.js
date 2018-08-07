@@ -26,13 +26,18 @@ const auth = jwtClient
 
 const calendar = google.calendar({version: 'v3', auth});
 
+const root = {
+    allDrivers: null,
+    metaDataPromises: [], //use this
+}
+
 app.use(cors);
 app.use(cookieParser);
 
 // GET /api/messages?category={category}
 // Get all messages, optionally specifying a category to filter on
 app.all('/', (req, res) => {
-    console.log('Calendar Updae called');
+    console.log('Calendar Update called');
     let syncToken = null
 
     admin.firestore().collection('rides_sync')
@@ -52,8 +57,34 @@ app.all('/', (req, res) => {
 
 
 });
+const retrieveDrivers = () => {
+    const driverCollection = admin.firestore().collection('drivers')
+
+    return driverCollection
+        .get()
+        .then(snapshot => {
+            const drivers = snapshot.map(doc => {
+                if (!doc.exists) {
+                    return null
+                }
+                const driver = {email: doc.id, uid:doc.data().uid};
+                console.log('found driver', driver)
+                return driver;
+            });
+            return drivers;
+        })
+        .catch( err => {console.log('couldnt get driver info',err)})
+};
+
 const readCalInfo = (res, syncToken) => {
     const emailCalendar = 'info@scoopus.io' // req.body.calendarID;
+
+    // grab meta info
+    const rtP = retrieveDrivers()
+    console.log('creating rtP', rtP)
+    root.metaDataPromises.push(rtP)
+    root.allDrivers = rtP.then(data => {console.log('all drivers are downloaded', data);return data})
+                    .catch(err => console.log('rtP',err))
 
     calendar.events.list({
         calendarId: emailCalendar,
@@ -79,7 +110,9 @@ const readCalInfo = (res, syncToken) => {
                 pruneEvent(event)
                     .then(perfectEvent=> {
                     // todo - do testing and logging here
-                    if(perfectEvent) {
+                        console.log(`inside pruning event`);
+
+                        if(perfectEvent) {
                         curated_events.push(perfectEvent)
                     }
                     return true
@@ -93,14 +126,11 @@ const readCalInfo = (res, syncToken) => {
         return res.status(200).json(true); // todo - just return success
     }),
         (err)=>{
-            console.log(err)
+            console.log('error calendar.events.list',err)
             return res.status(504)
         };
 
     //return res.status(200).json({test:true});
-}
-const getDataFromPage = () => {
-
 }
 
 const addRidesToRideCollection = (ridesToUpload, nextSyncToken) => {
@@ -142,24 +172,10 @@ const getDriverFromDescription = (text) => {
     return driverstr && driverstr !== undefined ? driverstr[0].replace(/driver:/g,'') : null
 }
 const getDriverFromAttendees = attendees => {
+    console.log('inside getDriverFromAttendees - root.allDrivers =', root.allDrivers)
+    const attendeesEmails = attendees.map(attendee => attendee.email)
 
-    const driverCollection = admin.firestore().collection('drivers')
-    const attendeesEmails = attendees.map( attendee => attendee.email)
-
-    return getFirebaseData(driverCollection, attendeesEmails)
-        .then(results => { return results.filter( r => r !== null);})
-
-
-    function getFirebaseData(collection, key_arr) {
-        return Promise
-            .all(key_arr.map(key_str => collection.doc(key_str)
-                .get()
-                .then(doc => {
-                    if (!doc.exists) {return( null)}
-                    return( {email: doc.id, uid:doc.data().uid} )
-                })))
-    }
-
+    return attendeesEmails.filter(email => {root.allDrivers.includes(email)})
 }
 const getGuardian = (attendees, driver_email) => {
     // todo utilize the driver collection in Firestore
@@ -181,17 +197,33 @@ const removeMetaData = (text) => {
     return text && text !== undefined ? text.replace(/(destination:.*)|(dest:.*)|(driver:.*)/gi,'').replace(/<(?:.|\n)*?>/gm, '') : null
 }
 const pruneEvent = (event) => {
+    console.log(`pruneEvent`);
     const {attendees, description, htmlLink, id, status, location, end, summary} = event;
+    console.log(`pruneEvent2`);
+
     const startdate = event.start? event.start.dateTime || event.start.date : null;
     const enddate = event.start? event.end.dateTime || event.end.date : null;
-    const guardian = { email: getGuardian(event.attendees, driver.email), id: null }
+
+    console.log(`pruneEvent3`);
+
+    console.log(`pruneEvent4`);
+
     const destination = getDestination(description)
+
+    console.log(`pruneEvent5`);
     const cleanDescription = removeMetaData(description)
+    console.log(`pruneEvent6`);
 
-    const driverPromise = getDriverFromAttendees(attendees)
+    const drivers = getDriverFromAttendees(attendees)
+    console.log(`pruneEvent7`);
 
-    return Promise.all(driverPromise)
-        .then(drivers => {
+    return Promise.all(root.metaDataPromises)
+        .then(values => {
+            console.log('inside promise.all', values)
+            console.log('inside promise.all - metaDataP =', root.metaDataPromises)
+            console.log('inside promise.all - drivers =', drivers)
+            //tood: upgrade guardian to be a metaData function like the rest
+            const guardian = { email: getGuardian(event.attendees, driver.email), id: null }
             let prunedEvent = {
                 description: cleanDescription,
                 url: htmlLink,
@@ -202,7 +234,7 @@ const pruneEvent = (event) => {
                 enddate,
                 destination,
                 summary,
-                driver: drivers,
+                driver: drivers !== undefined ? drivers : null,
                 guardian,
                 attendees
             }
@@ -210,7 +242,7 @@ const pruneEvent = (event) => {
             Object.keys(prunedEvent).map(key => (prunedEvent[key] === undefined ? prunedEvent[key] = null: true))
 
             return prunedEvent
-        }).catch(err => {console.log('error in pruneEvent func',err); return null})
+        }).catch(err => {console.log('error in pruneEvent func', err); return null})
 
 
 }

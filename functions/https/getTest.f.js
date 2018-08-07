@@ -29,35 +29,52 @@ const calendar = google.calendar({version: 'v3', auth});
 app.use(cors);
 app.use(cookieParser);
 
+const root = {
+    allDrivers: [],
+    metaDataPromise: null, //use this
+}
+
+const retrieveDrivers = () => {
+    const driverCollection = admin.firestore().collection('drivers')
+
+    return driverCollection
+        .get()
+        .then(snapshot => {
+            snapshot.forEach(doc => {
+                console.log(doc.id, '=>', doc.data());
+                if (!doc.exists) {
+                    return null
+                }
+                return( {email: doc.id, uid:doc.data().uid} )
+            });
+            return true
+        })
+        .catch( err => {console.log('couldnt get driver info',err)})
+}
+
 // GET /api/messages?category={category}
 // Get all messages, optionally specifying a category to filter on
 app.all('/', (req, res) => {
     console.log('calUpdate called - body, params, query', req.body, req.params);
 
     //dummy data
-    attendees = [{email:'unkown@gmail.com'},{email:'testdriver@test.com'},{email:'info@scoopus.io'},{email:'auraisnu@gmail.com'}]
+    const attendeesdummyEventAttendes = [{email:'unkown@gmail.com'},{email:'testdriver@test.com'},{email:'info@scoopus.io'},{email:'auraisnu@gmail.com'}]
 
-    const driverCollection = admin.firestore().collection('drivers')
-    const attendeesEmails = attendees.map( attendee => attendee.email)
-
-    console.log('attendeesEmails',attendeesEmails)
-
-
-    console.log( 'return from func', getFirebaseData(driverCollection, attendeesEmails).then(results => {console.log('inside final thne',results.filter( r => r !== null)); return true;}) )
-
-
-    function getFirebaseData(collection, key_arr) {
-        return Promise
-            .all(key_arr.map(key_str => collection.doc(key_str)
-                .get()
-                .then(doc => {
-                    if (!doc.exists) {return( null)}
-                    return( {email: doc.id, uid:doc.data().uid} )
-                })))
-    }
-
-
+    // grab meta info
+    root.allDrivers = retrieveDrivers()
+        .then(getDriverFromAttendees(attendeesdummyEventAttendes),data => data)
+        .catch(err => console.log(err))
 
 });
+
+const getDriverFromAttendees = attendees => {
+    const attendeesEmails = attendees.map(attendee => attendee.email)
+
+    return attendeesEmails.filter(email => {
+        console.log('root.allDrivers',root.allDrivers)
+        root.allDrivers.includes(email)
+    })
+}
+
 
 exports = module.exports = functions.https.onRequest(app);
