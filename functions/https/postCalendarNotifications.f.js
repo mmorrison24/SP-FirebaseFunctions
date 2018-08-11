@@ -64,14 +64,17 @@ const retrieveDrivers = () => {
     return driverCollection
         .get()
         .then(snapshot => {
-            const drivers = snapshot.map(doc => {
+            console.log('----> in driver then ', snapshot)
+            let drivers = [];
+            snapshot.forEach(doc => {
                 if (!doc.exists) {
                     return null
                 }
                 const driver = {email: doc.id, uid:doc.data().uid};
                 console.log('found driver', driver)
-                return driver;
+                drivers.push( driver );
             });
+            console.log('after drivers setup', drivers)
             return Promise.resolve( drivers );
         })
         .catch( err => {console.log('couldnt get driver info',err)})
