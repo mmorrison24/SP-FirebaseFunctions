@@ -1,7 +1,8 @@
 const functions = require('firebase-functions'); // The Cloud Functions for Firebase SDK to create Cloud Functions and setup triggers.
 const admin = require('firebase-admin'); // The Firebase Admin SDK to access the Firebase Realtime Database.
 try {admin.initializeApp(functions.config().firebase);} catch(e) {Function.prototype} // You do that because the admin SDK can only be initialized once.
-//[user includes]
+
+var _ = require('lodash');
 const {google} = require('googleapis');
 const express = require('express');
 const cookieParser = require('cookie-parser')();
@@ -71,7 +72,7 @@ const retrieveDrivers = () => {
                 console.log('found driver', driver)
                 return driver;
             });
-            return drivers;
+            return Promise.resolve( drivers );
         })
         .catch( err => {console.log('couldnt get driver info',err)})
 };
@@ -174,8 +175,8 @@ const getDriverFromDescription = (text) => {
 const getDriverFromAttendees = attendees => {
     console.log('inside getDriverFromAttendees - root.allDrivers =', root.allDrivers)
     const attendeesEmails = attendees.map(attendee => attendee.email)
-
-    return attendeesEmails.filter(email => {root.allDrivers.includes(email)})
+console.log('root.allDrivers',root.allDrivers)
+    return attendeesEmails.filter(email => {_.includes(root.allDrivers, email)})
 }
 const getGuardian = (attendees, driver_email) => {
     // todo utilize the driver collection in Firestore
@@ -214,14 +215,19 @@ const pruneEvent = (event) => {
     const cleanDescription = removeMetaData(description)
     console.log(`pruneEvent6`);
 
-    const drivers = getDriverFromAttendees(attendees)
-    console.log(`pruneEvent7`);
+
 
     return Promise.all(root.metaDataPromises)
         .then(values => {
             console.log('inside promise.all', values)
             console.log('inside promise.all - metaDataP =', root.metaDataPromises)
+
+            const drivers = getDriverFromAttendees(attendees)
+            console.log(`pruneEvent7`);
+
             console.log('inside promise.all - drivers =', drivers)
+            console.log('inside promise.all - values =', values)
+            const driver = drivers[0];
             //tood: upgrade guardian to be a metaData function like the rest
             const guardian = { email: getGuardian(event.attendees, driver.email), id: null }
             let prunedEvent = {

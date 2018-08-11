@@ -55,15 +55,38 @@ const retrieveDrivers = () => {
 // GET /api/messages?category={category}
 // Get all messages, optionally specifying a category to filter on
 app.all('/', (req, res) => {
-    console.log('calUpdate called - body, params, query', req.body, req.params);
+    console.log('Test called - body, params, query', req.body, req.params);
 
     //dummy data
     const attendeesdummyEventAttendes = [{email:'unkown@gmail.com'},{email:'testdriver@test.com'},{email:'info@scoopus.io'},{email:'auraisnu@gmail.com'}]
 
     // grab meta info
-    root.allDrivers = retrieveDrivers()
+    /*root.allDrivers = retrieveDrivers()
         .then(getDriverFromAttendees(attendeesdummyEventAttendes),data => data)
-        .catch(err => console.log(err))
+        .catch(err => console.log(err))*/
+
+
+
+    function listAllUsers(nextPageToken) {
+        // List batch of users, 1000 at a time.
+        const users = []
+        admin.auth().listUsers(1000, nextPageToken)
+            .then(function(listUsersResult) {
+                listUsersResult.users.forEach(function(userRecord) {
+                    users.push( userRecord.toJSON() );
+                });
+                return res.send(users);
+                // if (listUsersResult.pageToken) {
+                //     // List next batch of users.
+                //     listAllUsers(listUsersResult.pageToken)
+                // }
+            })
+            .catch(function(error) {
+                console.log("Error listing users:", error);
+            });
+    }
+// Start listing users from the beginning, 1000 at a time.
+    listAllUsers();
 
 });
 

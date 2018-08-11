@@ -18,6 +18,7 @@
     "firebase-functions": "^1.1.0",
     "glob": "^7.1.2",
     "googleapis": "^28.1.0",
+    "lodash": "^4.17.10",
     "mailgun-js": "^0.16.0"
   },
   "devDependencies": {
