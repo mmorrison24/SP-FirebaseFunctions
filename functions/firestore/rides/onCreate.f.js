@@ -3,7 +3,7 @@ const admin = require('firebase-admin'); // The Firebase Admin SDK to access the
 try { admin.initializeApp(functions.config().firebase); } catch(e) { Function.prototype } // You do that because the admin SDK can only be initialized once.
 
 // Listens for new data added to rides/{id}
-exports = module.exports = functions.firestore.document('rides/{rideID}').onCreate((snap, context) => {
+exports = module.exports = functions.firestore.document('rides_test/{rideID}').onCreate((snap, context) => {
 
     const original = snap.data(); // Grab the current value of what was written to the firestore Database.
 
@@ -33,7 +33,7 @@ exports = module.exports = functions.firestore.document('rides/{rideID}').onCrea
             myUpdatedSnapshot.guardian.uid = UIDs[1] || null;
             myUpdatedSnapshot.guardian.email = original.guardian.email || null;
 
-            //console.log('myUpdatedSnapshot ', myUpdatedSnapshot, UIDs)
+            console.log('myUpdatedSnapshot ', myUpdatedSnapshot, UIDs)
 
             return snap.ref.set(myUpdatedSnapshot, {merge: true})
         })

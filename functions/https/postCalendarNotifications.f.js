@@ -28,7 +28,6 @@ const auth = jwtClient
 const calendar = google.calendar({version: 'v3', auth});
 
 const root = {
-    allDrivers: null,
     metaDataPromises: [], //use this
 }
 
@@ -58,25 +57,21 @@ app.all('/', (req, res) => {
 
 
 });
-const retrieveDrivers = () => {
-    const driverCollection = admin.firestore().collection('drivers')
-
-    return driverCollection
+const retrieveProfiles = (collection) => {
+    return collection
         .get()
         .then(snapshot => {
-            console.log('----> in driver then ', snapshot)
-            let drivers = [];
+            let profiles = [];
             snapshot.forEach(doc => {
                 if (!doc.exists) {
                     return null
                 }
                 // todo , grab the rest of the meta data in the driver obj
                 const driver = {email: doc.id, uid:doc.data().uid};
-                console.log('found driver', driver)
-                drivers.push( driver );
+                profiles.push( driver );
             });
-            console.log('after drivers setup', drivers)
-            return Promise.resolve( drivers );
+            console.log('after profiles setup', profiles)
+            return Promise.resolve( profiles );
         })
         .catch( err => {console.log('couldnt get driver info',err)})
 };
@@ -85,11 +80,10 @@ const readCalInfo = (res, syncToken) => {
     const emailCalendar = 'info@scoopus.io' // req.body.calendarID;
 
     // grab meta info
-    const rtP = retrieveDrivers()
-    console.log('creating rtP', rtP)
-    root.metaDataPromises.push(rtP)
-    root.allDrivers = rtP.then(data => {console.log('all drivers are downloaded', data);return data})
-                    .catch(err => console.log('rtP',err))
+    const metaDataDriversPromise = retrieveProfiles(admin.firestore().collection('drivers'))
+    const metaDataParentsPromise = retrieveProfiles(admin.firestore().collection('parents'))
+    root.metaDataPromises.push(metaDataDriversPromise)
+    root.metaDataPromises.push(metaDataParentsPromise)
 
     calendar.events.list({
         calendarId: emailCalendar,
@@ -173,18 +167,20 @@ const getDriverFromAttendees = ( attendees, drivers ) => {
 
     const driverEmails = drivers.map( driver => (driver.email) );
     console.log('in egetDriverFromAttendees',driverEmails)
-    return attendees.filter(member => (_.includes(driverEmails, member.email)))
+    const driver = attendees.filter(member => (_.includes(driverEmails, member.email)))
+    console.log('drvr',driver)
+    return driver;
 }
-const getGuardian = (attendees, driver_email) => {
-    // todo utilize the driver collection in Firestore
-    // todo make sure this returns multiple parents
+const getGuardianFromAttendees = ( attendees, guardians ) => {
     if(!attendees || attendees.length <= 0)
         return null
 
-    const parents = attendees.filter((attendant) => !attendant.self && !attendant.organizer && attendant.email !== driver_email )
-    return parents[0]? parents[0].email : null
+    const guardianEmails = guardians.map( guardian => (guardian.email) );
+    console.log('in egetGurdianFromAttendees', guardianEmails)
+    const guardian = attendees.filter(member => (_.includes(guardianEmails, member.email)))
+    console.log('guardian',guardian)
+    return guardian;
 }
-
 const getDestination = (text) => {
     if(text === undefined || text === null)
         return null
@@ -202,10 +198,12 @@ const pruneEvent = (event, metaData) => {
     const destination = getDestination(description)
     const cleanDescription = removeMetaData(description)
     const driver = getDriverFromAttendees(attendees, metaData[0]);
+    const guardian = getGuardianFromAttendees(attendees, metaData[1]);
 
+    console.log('guardian',guardian)
+    console.log('guardian',guardian)
     console.log(`pruneEvent2`, driver);
     //tood: upgrade guardian to be a metaData function like the rest
-    const guardian = { email: getGuardian(event.attendees, driver? driver.email : null ), id: null }
     let prunedEvent = {
         description: cleanDescription,
         url: htmlLink,
@@ -216,8 +214,8 @@ const pruneEvent = (event, metaData) => {
         enddate,
         destination,
         summary,
-        driver: driver !== undefined ? driver : null,
-        guardian,
+        driver: driver ? driver : null,
+        guardian: guardian? guardian: null,
         attendees
     }
 
