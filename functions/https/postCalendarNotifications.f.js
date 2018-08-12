@@ -70,6 +70,7 @@ const retrieveDrivers = () => {
                 if (!doc.exists) {
                     return null
                 }
+                // todo , grab the rest of the meta data in the driver obj
                 const driver = {email: doc.id, uid:doc.data().uid};
                 console.log('found driver', driver)
                 drivers.push( driver );
@@ -166,17 +167,13 @@ const addRidesToRideCollection = (ridesToUpload, nextSyncToken) => {
 
 }
 
-const getDriverFromDescription = (text) => {
-    if(text === undefined || text === null)
+const getDriverFromAttendees = ( attendees, drivers ) => {
+    if(!attendees || attendees.length <= 0)
         return null
-    const driverstr = text.match(/driver:.*/g)
-    return driverstr && driverstr !== undefined ? driverstr[0].replace(/driver:/g,'') : null
-}
-const getDriverFromAttendees = attendees => {
-    console.log('inside getDriverFromAttendees - root.allDrivers =', root.allDrivers)
-    const attendeesEmails = attendees.map(attendee => attendee.email)
-console.log('root.allDrivers',root.allDrivers)
-    return attendeesEmails.filter(email => {_.includes(root.allDrivers, email)})
+
+    const driverEmails = drivers.map( driver => (driver.email) );
+    console.log('in egetDriverFromAttendees',driverEmails)
+    return attendees.filter(member => (_.includes(driverEmails, member.email)))
 }
 const getGuardian = (attendees, driver_email) => {
     // todo utilize the driver collection in Firestore
@@ -204,10 +201,9 @@ const pruneEvent = (event, metaData) => {
     const enddate = event.start? event.end.dateTime || event.end.date : null;
     const destination = getDestination(description)
     const cleanDescription = removeMetaData(description)
-    const drivers = metaData[0];
-    const driver = drivers[0];
+    const driver = getDriverFromAttendees(attendees, metaData[0]);
 
-    console.log(`pruneEvent2`, drivers, driver);
+    console.log(`pruneEvent2`, driver);
     //tood: upgrade guardian to be a metaData function like the rest
     const guardian = { email: getGuardian(event.attendees, driver? driver.email : null ), id: null }
     let prunedEvent = {
@@ -220,7 +216,7 @@ const pruneEvent = (event, metaData) => {
         enddate,
         destination,
         summary,
-        driver: drivers !== undefined ? drivers : null,
+        driver: driver !== undefined ? driver : null,
         guardian,
         attendees
     }
@@ -229,58 +225,5 @@ const pruneEvent = (event, metaData) => {
 
     return prunedEvent
 }
-const pruneEventUsingMetaDataPromise = (event) => {
-    console.log(`pruneEvent ----------->>`);
-    const {attendees, description, htmlLink, id, status, location, end, summary} = event;
-    console.log(`pruneEvent2`);
 
-    const startdate = event.start? event.start.dateTime || event.start.date : null;
-    const enddate = event.start? event.end.dateTime || event.end.date : null;
-
-    console.log(`pruneEvent3`);
-
-    console.log(`pruneEvent4`);
-
-    const destination = getDestination(description)
-
-    console.log(`pruneEvent5`);
-    const cleanDescription = removeMetaData(description)
-    console.log(`pruneEvent6`);
-
-
-
-    return Promise.all(root.metaDataPromises)
-        .then(values => {
-            console.log('inside promise.all', values)
-
-            const drivers = values[0]
-            console.log(`pruneEvent7`);
-
-            console.log('inside promise.all - drivers =', drivers)
-            console.log('inside promise.all - values =', values)
-            const driver = drivers[0];
-            //tood: upgrade guardian to be a metaData function like the rest
-            const guardian = { email: getGuardian(event.attendees, driver? driver.email : null ), id: null }
-            let prunedEvent = {
-                description: cleanDescription,
-                url: htmlLink,
-                id,
-                status,
-                location,
-                startdate,
-                enddate,
-                destination,
-                summary,
-                driver: drivers !== undefined ? drivers : null,
-                guardian,
-                attendees
-            }
-
-            Object.keys(prunedEvent).map(key => (prunedEvent[key] === undefined ? prunedEvent[key] = null: true))
-
-            return prunedEvent
-        }).catch(err => {console.log('error in pruneEvent func', err); return null})
-
-
-}
 exports = module.exports = functions.https.onRequest(app);
