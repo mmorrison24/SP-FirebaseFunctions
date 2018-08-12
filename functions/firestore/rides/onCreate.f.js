@@ -27,11 +27,11 @@ exports = module.exports = functions.firestore.document('rides/{rideID}').onCrea
 
             myUpdatedSnapshot.driver = {};
             myUpdatedSnapshot.driver.uid = UIDs[0] || null;
-            myUpdatedSnapshot.driver.email = original.driver.email;
+            myUpdatedSnapshot.driver.email = original.driver.email || null;
 
             myUpdatedSnapshot.guardian = {};
             myUpdatedSnapshot.guardian.uid = UIDs[1] || null;
-            myUpdatedSnapshot.guardian.email = original.guardian.email;
+            myUpdatedSnapshot.guardian.email = original.guardian.email || null;
 
             //console.log('myUpdatedSnapshot ', myUpdatedSnapshot, UIDs)
 
