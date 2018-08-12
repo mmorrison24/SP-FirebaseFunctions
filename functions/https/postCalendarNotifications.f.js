@@ -114,7 +114,7 @@ const readCalInfo = (res, syncToken) => {
                 pruneEvent(event)
                     .then(perfectEvent=> {
                     // todo - do testing and logging here
-                        console.log(`inside pruning event`);
+                        console.log(`inside pruning event`, perfectEvent);
 
                         if(perfectEvent) {
                         curated_events.push(perfectEvent)
@@ -125,6 +125,8 @@ const readCalInfo = (res, syncToken) => {
         });
         // todo save the sanitized description back to the calendar
         //add to rides collection?
+        console.log(`... going ot call addRidesToRideCollection`, curated_events);
+
         addRidesToRideCollection(curated_events, resp.data.nextSyncToken)
 
         return res.status(200).json(true); // todo - just return success
@@ -201,7 +203,7 @@ const removeMetaData = (text) => {
     return text && text !== undefined ? text.replace(/(destination:.*)|(dest:.*)|(driver:.*)/gi,'').replace(/<(?:.|\n)*?>/gm, '') : null
 }
 const pruneEvent = (event) => {
-    console.log(`pruneEvent`);
+    console.log(`pruneEvent ----------->>`);
     const {attendees, description, htmlLink, id, status, location, end, summary} = event;
     console.log(`pruneEvent2`);
 
@@ -223,16 +225,15 @@ const pruneEvent = (event) => {
     return Promise.all(root.metaDataPromises)
         .then(values => {
             console.log('inside promise.all', values)
-            console.log('inside promise.all - metaDataP =', root.metaDataPromises)
 
-            const drivers = getDriverFromAttendees(attendees)
+            const drivers = values[0]
             console.log(`pruneEvent7`);
 
             console.log('inside promise.all - drivers =', drivers)
             console.log('inside promise.all - values =', values)
             const driver = drivers[0];
             //tood: upgrade guardian to be a metaData function like the rest
-            const guardian = { email: getGuardian(event.attendees, driver.email), id: null }
+            const guardian = { email: getGuardian(event.attendees, driver? driver.email : null ), id: null }
             let prunedEvent = {
                 description: cleanDescription,
                 url: htmlLink,
