@@ -108,34 +108,29 @@ const readCalInfo = (res, syncToken) => {
 
         const events = resp.data.items;
         let curated_events = [];
-        console.log(`Sanitizing upcoming ${events.length} events:`);
-        events.map((event) => {
-            if(event.status === 'confirmed'){
-                pruneEvent(event)
-                    .then(perfectEvent=> {
-                    // todo - do testing and logging here
-                        console.log(`inside pruning event`, perfectEvent);
 
-                        if(perfectEvent) {
-                        curated_events.push(perfectEvent)
+        //wait for meta data
+        Promise.all(root.metaDataPromises)
+            .then(metaData => {
+                console.log(`Sanitizing upcoming ${events.length} events:`, metaData);
+                events.map((event) => {
+                    if(event.status === 'confirmed'){
+                        curated_events.push( pruneEvent(event, metaData) )
                     }
-                    return true
-                }).catch( err => {console.log('couldnt prune event',err)})
-            }
-        });
-        // todo save the sanitized description back to the calendar
-        //add to rides collection?
-        console.log(`... going ot call addRidesToRideCollection`, curated_events);
+                });
+                // todo save the sanitized description back to the calendar
+                //add to rides collection?
+                console.log(`... going ot call addRidesToRideCollection`, curated_events);
 
-        addRidesToRideCollection(curated_events, resp.data.nextSyncToken)
+                addRidesToRideCollection(curated_events, resp.data.nextSyncToken)
 
-        return res.status(200).json(true); // todo - just return success
-    }),
-        (err)=>{
+                return res.status(200).json(true); // todo - just return success
+            }).catch(err => {console.log('error in pruneEvent func', err); return null})
+
+    }), (err)=>{
             console.log('error calendar.events.list',err)
             return res.status(504)
-        };
-
+    };
     //return res.status(200).json({test:true});
 }
 
@@ -202,7 +197,39 @@ const getDestination = (text) => {
 const removeMetaData = (text) => {
     return text && text !== undefined ? text.replace(/(destination:.*)|(dest:.*)|(driver:.*)/gi,'').replace(/<(?:.|\n)*?>/gm, '') : null
 }
-const pruneEvent = (event) => {
+const pruneEvent = (event, metaData) => {
+    console.log(`pruneEvent ----------->>`);
+    const {attendees, description, htmlLink, id, status, location, end, summary} = event;
+    const startdate = event.start? event.start.dateTime || event.start.date : null;
+    const enddate = event.start? event.end.dateTime || event.end.date : null;
+    const destination = getDestination(description)
+    const cleanDescription = removeMetaData(description)
+    const drivers = metaData[0];
+    const driver = drivers[0];
+
+    console.log(`pruneEvent2`, drivers, driver);
+    //tood: upgrade guardian to be a metaData function like the rest
+    const guardian = { email: getGuardian(event.attendees, driver? driver.email : null ), id: null }
+    let prunedEvent = {
+        description: cleanDescription,
+        url: htmlLink,
+        id,
+        status,
+        location,
+        startdate,
+        enddate,
+        destination,
+        summary,
+        driver: drivers !== undefined ? drivers : null,
+        guardian,
+        attendees
+    }
+
+    Object.keys(prunedEvent).map(key => (prunedEvent[key] === undefined ? prunedEvent[key] = null: true))
+
+    return prunedEvent
+}
+const pruneEventUsingMetaDataPromise = (event) => {
     console.log(`pruneEvent ----------->>`);
     const {attendees, description, htmlLink, id, status, location, end, summary} = event;
     console.log(`pruneEvent2`);
