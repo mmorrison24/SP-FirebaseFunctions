@@ -5,16 +5,16 @@ try {admin.initializeApp(functions.config().firebase);} catch(e) {Function.proto
 var mailgun = require('mailgun-js')({apiKey:'key-c21a941bb7663e3938b887a3cb502797', domain:'mg.scoopus.io'})
 
 // Listens for new data added to contact_msgs{id}
-exports = module.exports = functions.firestore.document('contact_msgs/{messageID}').onCreate((snap, context) => {
+exports = module.exports = functions.auth.user().onCreate((user) => {
     // Grab the current value of what was written to the firestore Database.
-    const original = snap.data();
-    console.log('Sending message', original);
+    console.log('Sending message', user);
 
     var data = {
         from: 'notify@scoopus.io',
-        subject: `ScoopUs Contact:: ${original.subject}`,
-        html: `<p>${JSON.stringify(original.msg)}</p>`,
-        'h:Reply-To': original.email,
+        subject: `ScoopUs New Registration:: ${user.displayName}`,
+        html: `<p>A new user has registerd at scoopus.io</p>
+            <p>users can be viewed at <a href="https://console.firebase.google.com/u/1/project/yetigo-3b1de/authentication/users">the firebase console</a></p>
+            <p>${JSON.stringify(user)}</p>`,
         to: 'customers@scoopus.io'
     }
 
