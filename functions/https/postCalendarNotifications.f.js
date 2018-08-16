@@ -66,8 +66,8 @@ const retrieveProfiles = (collection) => {
                 if (!doc.exists) {
                     return null
                 }
-                // todo , grab the rest of the meta data in the driver obj
-                const driver = {email: doc.id, uid:doc.data().uid};
+                const data = doc.data()
+                const driver = {}.concat( {email: doc.id}, data}; //todo - figure out how to rest operate this
                 profiles.push( driver );
             });
             console.log('after profiles setup', profiles)
@@ -214,8 +214,8 @@ const pruneEvent = (event, metaData) => {
         enddate,
         destination,
         summary,
-        driver: driver ? driver : null,
-        guardian: guardian? guardian: null,
+        driver: driver ? driver[0] : null,
+        guardian: guardian? guardian[0] : null,
         attendees
     }
 
