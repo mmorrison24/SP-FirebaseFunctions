@@ -54,8 +54,6 @@ app.all('/', (req, res) => {
             console.log("Error getting syncToken:", error);
         });
 
-
-
 });
 const retrieveProfiles = (collection) => {
     return collection
@@ -66,9 +64,8 @@ const retrieveProfiles = (collection) => {
                 if (!doc.exists) {
                     return null
                 }
-                const data = doc.data()
-                const driver = {}.concat( {email: doc.id}, data}; //todo - figure out how to rest operate this
-                profiles.push( driver );
+                const profile = _.assign( {email: doc.id}, doc.data() ); //todo - figure out how to rest operate this
+                profiles.push( profile );
             });
             console.log('after profiles setup', profiles)
             return Promise.resolve( profiles );
@@ -77,26 +74,42 @@ const retrieveProfiles = (collection) => {
 };
 
 const readCalInfo = (res, syncToken) => {
-    const emailCalendar = 'info@scoopus.io' // req.body.calendarID;
+
 
     // grab meta info
     const metaDataDriversPromise = retrieveProfiles(admin.firestore().collection('drivers'))
     const metaDataParentsPromise = retrieveProfiles(admin.firestore().collection('parents'))
     root.metaDataPromises.push(metaDataDriversPromise)
     root.metaDataPromises.push(metaDataParentsPromise)
+    //wait for meta data
+    Promise.all(root.metaDataPromises)
+        .then(metaData => {
+
+            parseCalendarList(res, syncToken,metaData)
+
+            return true
+        })
+        .catch(err => {console.log('error in pruneEvent func', err); return null})
+}
+
+const parseCalendarList = (res, syncToken, metaData) => {
+
+    const emailCalendar = 'info@scoopus.io' // req.body.calendarID;
 
     calendar.events.list({
         calendarId: emailCalendar,
         syncToken: syncToken,
-        singleEvents: true,
+        //singleEvents: true,
     }, (err, resp) => {
+        console.log('-- parseCalendarList --',res, syncToken, metaData)
         if (err) {
             console.log('The API returned an error: ' + err);
             return res.status(500);
         }
         if (resp.data.items.length <= 0) {
-            console.log('No upcoming events found.');
-            return res.status(200).json({events:[]});
+            console.log('No More, upcoming events found.');
+            addRidesToRideCollection(null, resp.data.nextSyncToken)
+            return res.status(200).json(true)
         }
 
         // todo: handle updates and deletes properly
@@ -104,60 +117,63 @@ const readCalInfo = (res, syncToken) => {
         const events = resp.data.items;
         let curated_events = [];
 
-        //wait for meta data
-        Promise.all(root.metaDataPromises)
-            .then(metaData => {
-                console.log(`Sanitizing upcoming ${events.length} events:`, metaData);
-                events.map((event) => {
-                    if(event.status === 'confirmed'){
-                        curated_events.push( pruneEvent(event, metaData) )
-                    }
-                });
-                // todo save the sanitized description back to the calendar
-                //add to rides collection?
-                console.log(`... going ot call addRidesToRideCollection`, curated_events);
 
-                addRidesToRideCollection(curated_events, resp.data.nextSyncToken)
+        console.log(`Sanitizing upcoming ${events.length} events:`, metaData);
+        events.map((event) => {
+            if(event.status === 'confirmed'){
+                curated_events.push( pruneEvent(event, metaData) )
+            }
+        });
+        // todo save the sanitized description back to the calendar
+        //add to rides collection?
+        console.log(`... going ot call addRidesToRideCollection`, curated_events);
 
-                return res.status(200).json(true); // todo - just return success
-            }).catch(err => {console.log('error in pruneEvent func', err); return null})
+        addRidesToRideCollection(curated_events, resp.data.nextSyncToken)
 
-    }), (err)=>{
-            console.log('error calendar.events.list',err)
-            return res.status(504)
-    };
-    //return res.status(200).json({test:true});
+        parseCalendarList(res, resp.data.nextSyncToken, metaData)
+
+        //return res.status(200).json(true); // todo - just return success
+
+
+    }, (err)=>{
+        console.log('error calendar.events.list',err)
+        return res.status(504)
+    });
 }
 
 const addRidesToRideCollection = (ridesToUpload, nextSyncToken) => {
     console.log('saving events', ridesToUpload.length)
-    console.log('ride[0]', ridesToUpload[0])
+    console.log('ride[last]', ridesToUpload[ridesToUpload.length-1])
 
     // todo: remove this function , by maybe? adding to batch at event creation
 
     const batch = admin.firestore().batch();
     const ridesRef = admin.firestore().collection('rides');
 
-    ridesToUpload.map( event => {
-        console.log('uploading event', event.id);
-        batch.set( ridesRef.doc(event.id), event)
-    });
+    if(ridesToUpload){
+        ridesToUpload.map( event => {
+            console.log('uploading event', event.id);
+            batch.set( ridesRef.doc(event.id), event)
+        });
 
-    batch.commit()
-        .then( data =>{
-            console.log('save complete', data)
-            return true;})
-        .catch( err => {
-            console.log('error occuried on save', err)
-            return false
-        })
+        batch.commit()
+            .then( data =>{
+                console.log('save complete', data)
+                return true;})
+            .catch( err => {
+                console.log('error occuried on save', err)
+                return false
+            })
+    }
 
-    admin.firestore().collection('rides_sync')
-        .doc("nextSyncToken")
-        .set({
-            token: nextSyncToken,
-            date: new Date()
-        })
+    if(nextSyncToken){
+        admin.firestore().collection('rides_sync')
+            .doc("nextSyncToken")
+            .set({
+                token: nextSyncToken,
+                date: new Date()
+            })
+    }
 
 }
 
@@ -166,9 +182,9 @@ const getDriverFromAttendees = ( attendees, drivers ) => {
         return null
 
     const driverEmails = drivers.map( driver => (driver.email) );
-    console.log('in egetDriverFromAttendees',driverEmails)
+    //console.log('in getDriverFromAttendees',driverEmails)
     const driver = attendees.filter(member => (_.includes(driverEmails, member.email)))
-    console.log('drvr',driver)
+    console.log('drvr.',driver)
     return driver;
 }
 const getGuardianFromAttendees = ( attendees, guardians ) => {
@@ -176,9 +192,9 @@ const getGuardianFromAttendees = ( attendees, guardians ) => {
         return null
 
     const guardianEmails = guardians.map( guardian => (guardian.email) );
-    console.log('in egetGurdianFromAttendees', guardianEmails)
+    //console.log('in egetGurdianFromAttendees', guardianEmails)
     const guardian = attendees.filter(member => (_.includes(guardianEmails, member.email)))
-    console.log('guardian',guardian)
+    console.log('guardian.',guardian)
     return guardian;
 }
 const getDestination = (text) => {
@@ -191,18 +207,18 @@ const removeMetaData = (text) => {
     return text && text !== undefined ? text.replace(/(destination:.*)|(dest:.*)|(driver:.*)/gi,'').replace(/<(?:.|\n)*?>/gm, '') : null
 }
 const pruneEvent = (event, metaData) => {
-    console.log(`pruneEvent ----------->>`);
+    console.log(`pruneEvent ----------->>`, event.summary);
     const {attendees, description, htmlLink, id, status, location, end, summary} = event;
     const startdate = event.start? event.start.dateTime || event.start.date : null;
     const enddate = event.start? event.end.dateTime || event.end.date : null;
-    const destination = getDestination(description)
-    const cleanDescription = removeMetaData(description)
+    const destination = getDestination(description);
+    const cleanDescription = removeMetaData(description);
     const driver = getDriverFromAttendees(attendees, metaData[0]);
     const guardian = getGuardianFromAttendees(attendees, metaData[1]);
 
-    console.log('guardian',guardian)
-    console.log('guardian',guardian)
-    console.log(`pruneEvent2`, driver);
+    /*console.log('guardian',guardian, summary)
+    console.log('guardian',guardian, summary)*/
+    console.log(`pruneEvent2`, driver, summary);
     //tood: upgrade guardian to be a metaData function like the rest
     let prunedEvent = {
         description: cleanDescription,
@@ -214,10 +230,13 @@ const pruneEvent = (event, metaData) => {
         enddate,
         destination,
         summary,
-        driver: driver ? driver[0] : null,
-        guardian: guardian? guardian[0] : null,
+        driver: driver ? driver : null,
+        driver_flat: driver? driver.map(d => (d.email)) : null,
+        guardian: guardian? guardian : null,
+        guardian_flat: guardian? guardian.map(g => (g.email)) : null,
         attendees
     }
+    console.log(`pruneEvent3 <----`, summary, prunedEvent.driver_flat, prunedEvent.guardian_flat);
 
     Object.keys(prunedEvent).map(key => (prunedEvent[key] === undefined ? prunedEvent[key] = null: true))
 
