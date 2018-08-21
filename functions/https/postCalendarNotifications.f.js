@@ -142,15 +142,17 @@ const parseCalendarList = (res, syncToken, metaData) => {
 }
 
 const addRidesToRideCollection = (ridesToUpload, nextSyncToken) => {
-    console.log('saving events', ridesToUpload.length)
-    console.log('ride[last]', ridesToUpload[ridesToUpload.length-1])
-
-    // todo: remove this function , by maybe? adding to batch at event creation
-
-    const batch = admin.firestore().batch();
-    const ridesRef = admin.firestore().collection('rides');
 
     if(ridesToUpload){
+
+        console.log('saving events', ridesToUpload.length)
+        console.log('ride[last]', ridesToUpload[ridesToUpload.length-1])
+
+        // todo: remove this function , by maybe? adding to batch at event creation
+
+        const batch = admin.firestore().batch();
+        const ridesRef = admin.firestore().collection('rides');
+
         ridesToUpload.map( event => {
             console.log('uploading event', event.id);
             batch.set( ridesRef.doc(event.id), event)
