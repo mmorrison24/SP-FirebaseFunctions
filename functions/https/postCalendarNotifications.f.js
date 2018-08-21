@@ -200,8 +200,8 @@ const getGuardianFromAttendees = ( attendees, guardians ) => {
 const getDestination = (text) => {
     if(text === undefined || text === null)
         return null
-    const dest = text.match(/(dest:.*)|(destination:.*)/g)
-    return dest && dest !== undefined ? dest[0].replace(/(dest:)|(destination:)/g, '') : null
+    const dest = text.match(/(d:.*)|(dest:.*)|(destination:.*)/gi)
+    return dest ? dest[0].replace(/(d:)|(dest:)|(destination:)/gi, '') : null
 }
 const removeMetaData = (text) => {
     return text && text !== undefined ? text.replace(/(destination:.*)|(dest:.*)|(driver:.*)/gi,'').replace(/<(?:.|\n)*?>/gm, '') : null
