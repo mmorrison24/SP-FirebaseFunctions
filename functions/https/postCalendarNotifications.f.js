@@ -225,6 +225,7 @@ const pruneEvent = (event, metaData) => {
     let prunedEvent = {
         description: cleanDescription,
         url: htmlLink,
+        currentStep:'null',
         id,
         status,
         location,
