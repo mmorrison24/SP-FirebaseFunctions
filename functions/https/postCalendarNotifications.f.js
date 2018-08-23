@@ -210,7 +210,7 @@ const removeMetaData = (text) => {
 }
 const pruneEvent = (event, metaData) => {
     console.log(`pruneEvent ----------->>`, event.summary);
-    const {attendees, description, htmlLink, id, status, location, end, summary} = event;
+    const {attendees, description, htmlLink, id, status, location, end, summary, recurrence, recurringEventId} = event;
     const startdate = event.start? event.start.dateTime || event.start.date : null;
     const enddate = event.start? event.end.dateTime || event.end.date : null;
     const destination = getDestination(description);
@@ -233,6 +233,8 @@ const pruneEvent = (event, metaData) => {
         enddate,
         destination,
         summary,
+        recurrence: recurrence ? recurrence : null,
+        recurringEventId: recurringEventId ? recurringEventId : null,
         driver: driver ? driver : null,
         driver_flat: driver? driver.map(d => (d.email)) : null,
         guardian: guardian? guardian : null,
