@@ -5,22 +5,26 @@ try { admin.initializeApp(functions.config().firebase); } catch(e) { Function.pr
 // Listens for new data added to rides/{id}
 exports = module.exports = functions.firestore.document('ride_current/{rideID}').onWrite((change, context) => {
 
-    const original = change.before.data(); // Grab the current value of what was written to the firestore Database.
-
     // get driver info from original
     const isDelete = !change.after.exists ? true : false
     const doc = change.after.exists ? change.after.data() : null;
     const oldDoc = change.before.data()
+    const isNewDoc = (!change.before.exists && change.after.exists)
 
     const driver = isDelete ? oldDoc.driver : doc.driver
     const rideId = isDelete ? oldDoc.id : doc.id
 
-    console.log('found isDelete?', isDelete, 'rideId', rideId, 'driver', driver)
-    console.log('data',oldDoc, doc)
+    console.log('onCurrentRideWrite - isDelete?', isDelete, 'rideId', rideId, 'guardian', driver)
+
+    if(!isNewDoc){
+        return true
+    }
+
+    console.log('onCurrentRideWrite: isNewDoc ---> data',oldDoc, doc)
 
     // retrieve camera name from drivers{driver}
     admin.firestore().collection('drivers')
-        .doc(driver.email)
+        .doc(driver[0].email)
         .get()
         .then( doc => {
             if ( !doc.exists ) {

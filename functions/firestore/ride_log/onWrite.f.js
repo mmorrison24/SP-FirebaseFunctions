@@ -10,31 +10,47 @@ exports = module.exports = functions.firestore.document('ride_log/{rideID}').onW
     const original = change.before.data(); // Grab the current value of what was written to the firestore Database.
 
     // get driver info from original
-    const isDelete = !change.after.exists ? true : false
+    const isDelete = ( !change.after.exists )
+    if(isDelete) {
+        return true
+    }
+
     const doc = change.after.exists ? change.after.data() : null;
     const oldDoc = change.before.data()
 
-    const driver = isDelete ? oldDoc.driver : doc.driver
-    const log_id = isDelete ? oldDoc.id : doc.id
+    const guardian_flat = isDelete ? oldDoc.guardian_flat : doc.guardian_flat
+    const rideId = isDelete ? oldDoc.id : doc.id
+    const current_step = isDelete ? oldDoc.current_step : doc.current_step
+    const summary = isDelete ? oldDoc.summary : doc.summary
 
-    console.log('found a new ride_log entry - isDelete?', isDelete, 'rideId', log_id)
-    console.log('data',oldDoc, doc)
+    console.log('onRide_LogWrite - current_step', current_step, 'rideId', rideId, 'guardian', guardian_flat)
+    console.log(' ---> data',oldDoc, doc)
 
-
-    // Grab the current value of what was written to the firestore Database.
-    //console.log('Sending message', user);
-
-    var data = {
-        from: 'notify@scoopus.io',
-        subject: `ScoopUs Ride Update:: ${user.displayName}`,
-        html: `<p>A new user has registerd at scoopus.io</p>
-            <p>users can be viewed at <a href="https://console.firebase.google.com/u/1/project/yetigo-3b1de/authentication/users">the firebase console</a></p>
-            <p>${JSON.stringify(user)}</p>`,
-        to: 'customers@scoopus.io'
+    let msg = '';
+    let title = '';
+    //create message based on current_step
+    if(current_step === 'nav_to_pickup') {
+        title = 'Ready For Pickup'
+        msg = 'Your transporter is arriving and is ready to .'
+    }
+    if(current_step === 'dropoff') {
+        title = 'Arrived'
+        msg = 'Your transporter has arrived at the dropoff location, and is escorting your child as noted in the ride.'
     }
 
-    mailgun.messages().send(data, (error, body) => {
-        console.log(body)
+    //send email to guardians
+    guardian_flat.map(email => {
+        var data = {
+            from: 'notify@scoopus.io',
+            subject: `ScoopUs Ride Update:: ${summary} - ${title}`,
+            html: `<p>${JSON.stringify(msg)}</p>`,
+            'h:Reply-To': email,
+            to: 'customers@scoopus.io'
+        }
+        /*
+            mailgun.messages().send(data, (error, body) => {
+                console.log(body)
+            })*/
     })
 
 });
