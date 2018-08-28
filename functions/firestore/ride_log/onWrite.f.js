@@ -38,20 +38,24 @@ exports = module.exports = functions.firestore.document('ride_log/{rideID}').onW
         msg = 'Your transporter has arrived at the dropoff location, and is escorting your child as noted in the ride.'
     }
 
-    //send email to guardians
-    guardian_flat.map(email => {
-        var data = {
-            from: 'notify@scoopus.io',
-            subject: `ScoopUs Ride Update:: ${summary} - ${title}`,
-            html: `<p>${JSON.stringify(msg)}</p>`,
-            'h:Reply-To': email,
-            to: 'customers@scoopus.io'
-        }
-        /*
+    if(msg !== '') {
+        //send email to guardians
+        guardian_flat.map(email => {
+            var data = {
+                from: 'notify@scoopus.io',
+                subject: `ScoopUs Ride Update:: ${summary} - ${title}`,
+                html: `<p>${JSON.stringify(msg)}</p>`,
+                'h:Reply-To': email,
+                to: 'customers@scoopus.io'
+            };
+
             mailgun.messages().send(data, (error, body) => {
                 console.log(body)
-            })*/
-    })
+            })
+        });
+    }
+
+    return true
 
 });
 
