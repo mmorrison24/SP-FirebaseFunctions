@@ -31,11 +31,16 @@ exports = module.exports = functions.firestore.document('ride_log/{rideID}').onW
     //create message based on current_step
     if(current_step === 'nav_to_pickup') {
         title = 'Ready For Pickup'
-        msg = 'Your transporter is arriving and is ready to .'
+        msg = 'Your transporter is enroute to pick-up your child .'
+    }
+    if(current_step === 'pickup') {
+        title = 'Ready For Pickup'
+        msg = 'Your transporter has arrived to escort your child to their destination.'
     }
     if(current_step === 'dropoff') {
         title = 'Arrived'
-        msg = 'Your transporter has arrived at the dropoff location, and is escorting your child as noted in the ride.'
+        msg = 'Your transporter has arrived at the dropoff location, and is escorting your child safely to the' +
+            ' dropoff point.'
     }
 
     if(msg !== '') {
