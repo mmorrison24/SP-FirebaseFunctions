@@ -39,7 +39,7 @@ app.get('/', (req, res) => {
         .then(function (response) {
             console.log(response)
             const data = response.data;
-            if(data.status == 'OK'){
+            if(data.status === 'OK'){
                 console.log('onTripEstimate:response - data.status:',data.status);
                 return res.json(data);
             } else {
@@ -47,6 +47,7 @@ app.get('/', (req, res) => {
             }
 
         })
+        .catch(err => {console.log(err)})
 });
 
 
