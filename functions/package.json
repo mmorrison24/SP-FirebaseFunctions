@@ -10,6 +10,7 @@
     "logs": "firebase functions:log"
   },
   "dependencies": {
+    "axios": "^0.18.0",
     "camelcase": "^5.0.0",
     "cookie-parser": "^1.4.3",
     "cors": "^2.8.4",
